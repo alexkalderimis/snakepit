@@ -3,11 +3,14 @@ from nose.tools import *
 import snakepit
 from snakepit.schema import Base
 
-CONFIG = {"DB_URL": "postgresql://alex:alex@localhost:5432/snakepit-test"}
+CONFIG = snakepit.config.Config()
 USER = {"name": "test user", "email": "foo@bar.com", "password": "foo"}
 
+def select_keys(d, keys):
+    return dict((k, v) for k, v in d.iteritems() if k in keys)
 
 class StoreFixture(object):
+
     @classmethod
     def setup_class(cls):
         Base.metadata.create_all(snakepit.data.Store(CONFIG).__engine__)

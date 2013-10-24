@@ -18,7 +18,7 @@ class User(Base):
     passhash = Column(String)
 
     def __init__(self, name, email, password, id = None):
-        self.id = id
+        self.id = (id or uuid4())
         self.name = name
         self.email = email
         if password is not None:
@@ -48,6 +48,11 @@ class Step(Base):
 
     previous_step = relationship("Step", uselist = False, backref = backref("next_steps", uselist=True, remote_side = [id], order_by = created_at))
 
+    def __init__(self, mimetype, data, id = None):
+        self.id = (id or uuid4())
+        self.mimetype = mimetype
+        self.data = data
+
 
 class History(Base):
     __tablename__ = 'histories'
@@ -61,8 +66,9 @@ class History(Base):
     steps = relationship(Step, secondary = history_steps_assoc_table)
 
     def __init__(self, name, **kwargs):
-        self.id = kwargs.get("id")
-        self.created_at = kwargs.get("created_at")
+        self.id = kwargs.get("id", uuid4())
+        if "created_at" in kwargs:
+            self.created_at = kwargs.get("created_at")
         self.name = name
 
     def __repr__(self):

@@ -6,9 +6,6 @@ from snakepit.schema import Base
 CONFIG = snakepit.config.Config()
 USER = {"name": "test user", "email": "foo@bar.com", "password": "foo"}
 
-def select_keys(d, keys):
-    return dict((k, v) for k, v in d.iteritems() if k in keys)
-
 class StoreFixture(object):
 
     @classmethod
@@ -26,7 +23,7 @@ class StoreFixture(object):
         self.store = snakepit.data.Store(CONFIG)
 
     def teardown(self):
-        self.store.session.rollback()
+        self.store.close()
 
 class TestStore(StoreFixture):
 
@@ -63,48 +60,52 @@ class TestStoreWithHistories(StoreFixture):
     def setup(self):
         super(TestStoreWithHistories, self).setup()
         self.user = self.store.add_user(USER)
-        for title in ["hist1", "hist2", "hist3"]:
-            self.user.new_history(title)
-
-    def test_can_get_history(self):
-        h = self.user.histories[1]
-        eq_("hist2", h.name)
-        eq_([], h.steps)
-
-    def test_can_add_step(self):
-        h = self.user.histories[1]
-        h.append_step("application/intermine-list", {"name": "my-list"})
-        eq_(1, len(h.steps))
-
-    def test_steps_come_in_order(self):
-        h = self.user.histories[1]
+        (_, h, _) = (self.user.new_history(t) for t in ["hist1", "hist2", "hist3"])
 
         h.append_step("text/plain", "my search string")
         h.append_step("application/intermine-path-query",
                 {"select":["Gene.id"],"where":{"id":[1,2,3]}})
+        h.append_step("application/intermine-list", {"name": "my-list"})
 
-        eq_(2, len(h.steps))
+    def test_histories_have_ids(self):
+        ok_(all(h.id for h in self.user.histories))
+
+    def test_can_get_history(self):
+        h = self.user.histories[0]
+        eq_("hist1", h.name)
+        eq_([], h.steps)
+
+    def test_can_add_step(self):
+        h = self.user.histories[1]
+        eq_(3, len(h.steps))
+
+    def test_steps_come_in_order(self):
+        h = self.user.histories[1]
+
         eq_("my search string", h.steps[0].data)
         eq_([1,2,3], h.steps[1].data["where"]["id"])
 
     def test_steps_know_where_they_come_from(self):
         h = self.user.histories[1]
 
-        h.append_step("text/plain", "my search string")
-        h.append_step("application/intermine-path-query",
-                {"select":["Gene.id"],"where":{"id":[1,2,3]}})
-
-        eq_(2, len(h.steps))
         eq_(None, h.steps[0].previous_step)
         eq_(h.steps[0], h.steps[1].previous_step)
 
     def test_steps_know_where_they_go_to(self):
         h = self.user.histories[1]
-
-        h.append_step("text/plain", "my search string")
-        h.append_step("application/intermine-path-query",
-                {"select":["Gene.id"],"where":{"id":[1,2,3]}})
-
-        eq_(2, len(h.steps))
         eq_([h.steps[1]], h.steps[0].next_steps)
+
+    def test_can_fork_history(self):
+        h = self.user.histories[1]
+        forked = self.store.fork_history({"id": h.id}, 2)
+        eq_(2, len(forked.steps))
+        eq_(h.user, forked.user)
+        eq_(4, len(self.user.histories))
+        eq_(["text/plain", "application/intermine-path-query"], [s.mimetype for s in forked.steps])
+        forked.append_step("application/csv", "Gene 1,Value 1\nGene 2,Value 2")
+        eq_(3, len(forked.steps))
+        eq_(h.steps[1].next_steps, [h.steps[-1], forked.steps[-1]])
+        assert_false(h.steps[-1] in forked.steps)
+        assert_false(forked.steps[-1] in h.steps)
+
 

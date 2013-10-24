@@ -46,7 +46,7 @@ class Step(Base):
 
     prev_step_id = Column(GUID, ForeignKey('steps.id'), nullable = True)
 
-    previous_step = relationship("Step", backref = backref("next_steps", remote_side = [id], order_by = created_at))
+    previous_step = relationship("Step", uselist = False, backref = backref("next_steps", uselist=True, remote_side = [id], order_by = created_at))
 
 
 class History(Base):
@@ -67,4 +67,12 @@ class History(Base):
 
     def __repr__(self):
         return "<History(%r, %r)>" % (self.id, self.name)
+
+    def append_step(self, mimetype, data):
+        s = Step(mimetype = mimetype, data = data)
+        if len(self.steps):
+            s.previous_step = self.steps[-1]
+
+        self.steps.append(s)
+        return s
 

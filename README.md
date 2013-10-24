@@ -6,3 +6,15 @@
 /____/_/ /_/\__,_/_/|_|\___/ .___/_/\__/  
                           /_/             
 ```
+
+Data store web-services for steps, with a lisp.
+
+Installation
+=============
+
+* Clone
+* Setup environment: `virtualenv .`
+* Activate environment: `source bin/activate`
+* Install dependencies: `pip install -r requirements.txt`
+* Create testdb: `createdb snakepit-test`
+* Run tests: `nosetests`

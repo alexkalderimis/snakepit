@@ -27,6 +27,11 @@ class User(Base):
     def __repr__(self):
         return "<User(%r, %r)>" % (self.name, self.email)
 
+    def new_history(self, title):
+        h = History(name = title)
+        self.histories.append(h)
+        return h
+
 history_steps_assoc_table = Table('histories_steps', Base.metadata,
         Column('histories.id', GUID, ForeignKey('histories.id')),
         Column('steps.id', GUID, ForeignKey('steps.id')))
@@ -56,8 +61,8 @@ class History(Base):
     steps = relationship(Step, secondary = history_steps_assoc_table)
 
     def __init__(self, name, **kwargs):
-        self.id = kwargs["id"]
-        self.created_at = kwargs["created_at"]
+        self.id = kwargs.get("id")
+        self.created_at = kwargs.get("created_at")
         self.name = name
 
     def __repr__(self):

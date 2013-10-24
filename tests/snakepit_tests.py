@@ -6,8 +6,8 @@ from snakepit.schema import Base
 CONFIG = {"DB_URL": "postgresql://alex:alex@localhost:5432/snakepit-test"}
 USER = {"name": "test user", "email": "foo@bar.com", "password": "foo"}
 
-class TestStore(object):
 
+class StoreFixture(object):
     @classmethod
     def setup_class(cls):
         Base.metadata.create_all(snakepit.data.Store(CONFIG).__engine__)
@@ -25,6 +25,8 @@ class TestStore(object):
     def teardown(self):
         self.store.session.rollback()
 
+class TestStore(StoreFixture):
+
     def test_1(self):
         data_store = snakepit.data.Store(CONFIG)
 
@@ -35,9 +37,20 @@ class TestStore(object):
         self.store.add_user(USER)
         eq_(1, len(self.store.users()))
 
-    def test_4(self):
-        self.store.add_user(USER)
+class TestStoreWithUser(StoreFixture):
+
+    def setup(self):
+        super(TestStoreWithUser, self).setup()
+        self.user = self.store.add_user(USER)
+
+    def test_1(self):
         u = self.store.fetch_user(name = USER["name"])
         eq_(USER["name"], u.name)
         eq_(0, len(u.histories))
+        eq_(u, self.user)
+
+    def test_2(self):
+        tragic_tale = "the tragic tale of the test user and his tribulations"
+        self.user.new_history(tragic_tale)
+        eq_([tragic_tale], [h.name for h in self.user.histories])
 

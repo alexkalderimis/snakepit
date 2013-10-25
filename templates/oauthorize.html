@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block body %}
+<h2>Authorize client?</h2>
+<dl>
+    <dt>Client ID</dt>
+    <dd>{{ client_id }}</dd>
+    <dt>Scopes<dt>
+    <dd>
+        <ul>
+            {% for scope in scopes %}
+                <li>{{ scope }}</li>
+            {% endfor %}
+        </ul>
+    </dd>
+    <dt>Redirect URI</dt>
+    <dd>{{ redirect_uri }}</dd>
+    <dt>Response type</dt>
+    <dd>{{ response_type }}</dd>
+</dl>
+<form action="{{ url_for('authorize') }}" method="POST">
+    <input type="submit" name="confirm" value="yes">
+    <input type="submit" name="confirm" value="no">
+</form>
+
+{% endblock %}

@@ -34,6 +34,19 @@ class TestWebapp(object):
                 password=password
             ), follow_redirects=True)
 
+    def register(self, username, password, confim = None, email = None):
+        """Helper to register a user"""
+        if confirm is None:
+            confirm = password
+        if email is None:
+            email = username + "@foo.com"
+        return self.app.post("/register", data = {
+            "username": username,
+            "password": password,
+            "confirmpassword": confirm,
+            "email": email
+            }, follow_redirects = True)
+
     def logout(self):
         return self.app.get('/logout', follow_redirects=True)
 

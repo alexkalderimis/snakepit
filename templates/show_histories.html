@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+{% import "blocks/histories" as blocks %}
+{% block body %}
+<h1>Histories</h2>
+<ul>
+    {% for hist in histories %}
+        {{ blocks.history(hist)|safe }}
+    {% endfor %}
+</ul>
+<form action="{{ url_for('create_history') }}" method=POST>
+    <input type="text" name="histname">
+    <input type=submit value=create>
+</form>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "layout.html"%}
+{% require "blocks/histories" %}
+{% block body %}
+<h2>Step {{ step.id }}</h2>
+<table>
+    <tr>
+        <td>Tool</td>
+        <td>{{ step.tool }}</td>
+    </tr>
+    <tr>
+        <td>mimetype</td>
+        <td>{{ step.mimetype }}</td>
+    </tr>
+    <tr>
+        <td>data</td>
+        <td>{{ step.data }}</td>
+    </tr>
+</table>
+{% endblock %}

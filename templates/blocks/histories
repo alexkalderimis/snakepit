@@ -1,0 +1,12 @@
+{% macro history(h, steps) -%}
+<h2>{{ h.name }}</h2>
+Created at: {{ h.created_at }}
+<h3>Steps</h3>
+<ol>
+    {% for step in steps %}
+        <li><a href="{{ url_for('show_step', uuid = h.id, idx = loop.index) }}">
+            {{ step.tool }}
+        </a></li>
+    {% endfor %}
+</ol>
+{%- endmacro %}

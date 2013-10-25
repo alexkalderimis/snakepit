@@ -32,7 +32,7 @@ class TestWebapp(object):
         return self.app.post('/login', data=dict(
                 username=username,
                 password=password
-            ), follow_redirects=True)
+            ), follow_redirects=True, headers = [("Accept", "text/html")])
 
     def register(self, username, password, confim = None, email = None):
         """Helper to register a user"""
@@ -48,7 +48,7 @@ class TestWebapp(object):
             }, follow_redirects = True)
 
     def logout(self):
-        return self.app.get('/logout', follow_redirects=True)
+        return self.app.get('/logout', follow_redirects=True, headers = [("Accept", "text/html")])
 
     def test_welcome(self):
         rv = self.app.get("/")

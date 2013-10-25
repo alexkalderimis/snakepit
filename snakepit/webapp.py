@@ -14,7 +14,7 @@ import data
 
 templates = path.realpath(path.join(path.dirname(__file__), "..", "templates"))
 
-app = Flask(__name__, template_folder = templates)
+app = Flask('snakepit', template_folder = templates)
 app.config.update(config.Config())
 
 oauth = OAuth2Provider(app)

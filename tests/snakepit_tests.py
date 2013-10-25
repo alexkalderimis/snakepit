@@ -57,14 +57,21 @@ class TestStoreWithUser(StoreFixture):
 class TestStoreWithHistories(StoreFixture):
 
     def setup(self):
-        super(TestStoreWithHistories, self).setup()
-        self.user = self.store.add_user(USER)
-        (_, h, _) = (self.user.new_history(t) for t in ["hist1", "hist2", "hist3"])
+        try:
+            super(TestStoreWithHistories, self).setup()
+            self.user = self.store.add_user(USER)
+            (_, h, _) = (self.user.new_history(t) for t in ["hist1", "hist2", "hist3"])
 
-        h.append_step("text/plain", "my search string")
-        h.append_step("application/intermine-path-query",
-                {"select":["Gene.id"],"where":{"id":[1,2,3]}})
-        h.append_step("application/intermine-list", {"name": "my-list"})
+            h.append_step("http://tools.intermine.org/keyword-search",
+                    "text/plain", "my search string")
+            h.append_step("http://tools.intermine.org/choose-items",
+                    "application/intermine-path-query",
+                    {"select":["Gene.id"],"where":{"id":[1,2,3]}})
+            h.append_step("http://tools.intermine.org/create-list",
+                    "application/intermine-list", {"name": "my-list"})
+        except Exception as e:
+            print "setup error", e
+            self.store.close()
 
     def test_histories_have_ids(self):
         ok_(all(h.id for h in self.user.histories))
@@ -84,6 +91,11 @@ class TestStoreWithHistories(StoreFixture):
         eq_("my search string", h.steps[0].data)
         eq_([1,2,3], h.steps[1].data["where"]["id"])
 
+    def test_steps_have_tools(self):
+        h = self.user.histories[1]
+        eq_(["keyword-search", "choose-items", "create-list"], [ s.tool.split('/')[-1] \
+                for s in h.steps])
+
     def test_steps_know_where_they_come_from(self):
         h = self.user.histories[1]
 
@@ -101,7 +113,9 @@ class TestStoreWithHistories(StoreFixture):
         eq_(h.user, forked.user)
         eq_(4, len(self.user.histories))
         eq_(["text/plain", "application/intermine-path-query"], [s.mimetype for s in forked.steps])
-        forked.append_step("application/csv", "Gene 1,Value 1\nGene 2,Value 2")
+        assert_true(all(s in h.steps for s in forked.steps))
+        forked.append_step("http://tools.intermine.org/dummy",
+                "application/csv", "Gene 1,Value 1\nGene 2,Value 2")
         eq_(3, len(forked.steps))
         eq_(h.steps[1].next_steps, [h.steps[-1], forked.steps[-1]])
         assert_false(h.steps[-1] in forked.steps)

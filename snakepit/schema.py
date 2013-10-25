@@ -1,7 +1,7 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Table, Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship, backref, deferred
 from uuid import uuid4
 from snakepit.security import hash_pw
 import datetime
@@ -55,14 +55,16 @@ class Step(Base):
     id = Column(GUID, primary_key = True, default = uuid4)
     created_at = Column(DateTime(timezone = True), default = datetime.datetime.now)
     mimetype = Column(String)
-    data = Column(JSONEncodedValue)
+    data = deferred(Column(JSONEncodedValue))
+    tool = Column(String(255))
 
     prev_step_id = Column(GUID, ForeignKey('steps.id'), nullable = True)
 
     previous_step = relationship("Step", uselist = False, backref = backref("next_steps", uselist=True, remote_side = [id], order_by = created_at))
 
-    def __init__(self, mimetype, data, id = None):
+    def __init__(self, tool, mimetype, data, id = None):
         self.id = (id or uuid4())
+        self.tool = tool
         self.mimetype = mimetype
         self.data = data
 
@@ -87,8 +89,8 @@ class History(Base):
     def __repr__(self):
         return "<History(%r, %r)>" % (self.id, self.name)
 
-    def append_step(self, mimetype, data):
-        s = Step(mimetype = mimetype, data = data)
+    def append_step(self, tool, mimetype, data):
+        s = Step(tool = tool, mimetype = mimetype, data = data)
         if len(self.steps):
             s.previous_step = self.steps[-1]
 

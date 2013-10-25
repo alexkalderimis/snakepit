@@ -1,21 +1,20 @@
 from nose.tools import *
 
 import snakepit
-from snakepit.schema import Base
 
-CONFIG = snakepit.config.Config()
+CONFIG = snakepit.config.Config("TEST")
 USER = {"name": "test user", "email": "foo@bar.com", "password": "foo"}
 
 class StoreFixture(object):
 
     @classmethod
     def setup_class(cls):
-        Base.metadata.create_all(snakepit.data.Store(CONFIG).__engine__)
+        snakepit.data.Store(CONFIG).create_db()
 
     @classmethod
     def teardown_class(cls):
         try:
-            Base.metadata.drop_all(snakepit.data.Store(CONFIG).__engine__)
+            snakepit.data.Store(CONFIG).clear_db()
         except Exception as e:
             print(e)
 

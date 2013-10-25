@@ -3,26 +3,37 @@ from sqlalchemy import Table, Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, backref
 from uuid import uuid4
-import bcrypt
+from snakepit.security import hash_pw
 import datetime
 from snakepit.sqltypes import GUID, JSONEncodedValue
 
 Base = declarative_base()
 
+
+user_role_assoc_table = Table('users_roles', Base.metadata,
+        Column('users_id', GUID, ForeignKey('users.id')),
+        Column('roles_id', Integer, ForeignKey('roles.id')))
+
+history_steps_assoc_table = Table('histories_steps', Base.metadata,
+        Column('histories_id', GUID, ForeignKey('histories.id')),
+        Column('steps_id', GUID, ForeignKey('steps.id')))
+
 class User(Base):
     __tablename__ = 'users'
 
     id = Column(GUID, primary_key = True, default = uuid4)
-    name = Column(String)
+    name = Column(String, unique = True)
     email = Column(String)
     passhash = Column(String)
+
+    roles = relationship("Role", secondary = user_role_assoc_table)
 
     def __init__(self, name, email, password, id = None):
         self.id = (id or uuid4())
         self.name = name
         self.email = email
         if password is not None:
-            self.passhash = bcrypt.hashpw(password, bcrypt.gensalt())
+            self.passhash = hash_pw(password)
 
     def __repr__(self):
         return "<User(%r, %r)>" % (self.name, self.email)
@@ -32,9 +43,11 @@ class User(Base):
         self.histories.append(h)
         return h
 
-history_steps_assoc_table = Table('histories_steps', Base.metadata,
-        Column('histories.id', GUID, ForeignKey('histories.id')),
-        Column('steps.id', GUID, ForeignKey('steps.id')))
+class Role(Base):
+    __tablename__ = 'roles'
+
+    id = Column(Integer, primary_key = True)
+    name = Column(String(50), unique = True)
 
 class Step(Base):
     __tablename__ = 'steps'

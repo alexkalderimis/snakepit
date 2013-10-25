@@ -1,11 +1,12 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Table, Column, Integer, String, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Table, Column, Integer, String, DateTime, ForeignKey, Unicode, Boolean, UnicodeText
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship, backref, deferred
 from uuid import uuid4
-from snakepit.security import hash_pw
 import datetime
-from snakepit.sqltypes import GUID, JSONEncodedValue
+
+from sqltypes import GUID, JSONEncodedValue
+from security import hash_pw
 
 Base = declarative_base()
 
@@ -96,4 +97,61 @@ class History(Base):
 
         self.steps.append(s)
         return s
+
+class Client(Base):
+    __tablename__ = "oauth2clients"
+
+    name = Column(Unicode(40))
+    description = Column(Unicode(40))
+    user_id = Column(GUID, ForeignKey('users.id'))
+    user = relationship('User')
+    id = Column(Unicode(40), primary_key = True)
+    client_secret = Column(Unicode(55), unique = True, index = True, nullable = False)
+    is_confidential = Column(Boolean)
+    redirect_uris = Column(ARRAY(Unicode(255), as_tuple = True))
+    default_scopes = Column(ARRAY(Unicode(255), as_tuple = True))
+    allowed_grant_types = Column(ARRAY(Unicode(255), as_tuple = True))
+    allowed_response_types = Column(ARRAY(Unicode(255), as_tuple = True))
+
+    @property
+    def client_type(self):
+        if self.is_confidential:
+            return 'confidential'
+        return 'public'
+
+    @property
+    def default_redirect_uri(self):
+        return self.redirect_uris[0]
+
+class Grant(Base):
+    __tablename__ = "oauth2grants"
+
+    id = Column(Integer, primary_key = True)
+    user_id = Column(GUID, ForeignKey('users.id'))
+    user = relationship('User')
+    client_id = Column(Unicode(40), ForeignKey('oauth2clients.id'), nullable = False)
+    client = relationship('Client')
+    code = Column(Unicode(255), index = True, nullable = False)
+    redirect_uri = Column(Unicode(255))
+    expires = Column(DateTime)
+    scopes = Column(ARRAY(Unicode(255), as_tuple = True))
+
+class BearerToken(Base):
+    __tablename__ = "oauth2bearertokens"
+
+    id = Column(Integer, primary_key = True)
+    user_id = Column(GUID, ForeignKey('users.id'))
+    user = relationship('User')
+    client_id = Column(Unicode(40), ForeignKey('oauth2clients.id'), nullable = False)
+    client = relationship('Client')
+    token_type = Column(Unicode(40))
+    access_token = Column(Unicode(255), unique=True)
+    refresh_token = Column(Unicode(255), unique=True)
+    expires_in = Column(Integer, default = (60 ** 2))
+    created_at = Column(DateTime, default = datetime.datetime.utcnow)
+    scopes = Column(ARRAY(Unicode(255)))
+
+    @property
+    def expires(self):
+        return self.created_at + datetime.timedelta(seconds = self.expires_in)
 

@@ -1,9 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from schema import User, History, Base, Role
-
-def select_keys(d, keys):
-    return dict((k, v) for k, v in d.iteritems() if v is not None and k in keys)
+from schema import User, History, Base, Role, Client, Grant, BearerToken
+from utils import select_keys
 
 class Store(object):
 
@@ -35,7 +33,7 @@ class Store(object):
         return r
 
     def add_user(self, data):
-        u = User(**data)
+        u = User(**select_keys(data, ["name", "password", "email"]))
         r = self.get_role("user")
         u.roles.append(r)
         self.session.add(u)
@@ -55,6 +53,46 @@ class Store(object):
         hh.steps = h.steps[:index]
         return hh
 
+    def fetch_client(self, client):
+        if "id" not in client:
+            raise ArgumentError("id must be provided")
+        constraint = select_keys(client, ["id"])
+
+        return self.session.query(Client).filter_by(**constraint).first()
+
+    def get_grant(self, client_id, code):
+        return session.query(Grant).\
+                       filter_by(client_id = client_id, code = code).\
+                       first()
+
+    def save_grant(self, user, client, code, redirect_uri, scopes, expires):
+        grant = Grant(
+            client = client,
+            code = code,
+            redirect_uri = redirect_uri,
+            scopes = scopes,
+            user = user,
+            expires = expires)
+        self.session.add(grant)
+        return grant
+
+    def get_token(self, contraint):
+        return self.query(BearerToken).filter_by(**contraint).first()
+
+    def add_token(self, client, user, attrs):
+        toks = BearerToken.query.filter_by(client = client, user = user)
+        self.session.delete(toks)
+        to_store = select_keys(attrs, ["accept_token", "refresh_token", "token_type", "expires_in"])
+        to_store.update(dict(
+            scopes = token["scope"].split(),
+            user = user,
+            client = client))
+        tok = BearerToken(**to_store)
+        self.session.add(tok)
+        return tok
+
+
+
     def close(self):
         if self._session is not None: self._session.close()
         self._session = None
@@ -68,6 +106,5 @@ class Store(object):
             self.session.rollback()
         else:
             self.session.commit()
-        self.close()
         return False
 

@@ -127,3 +127,11 @@ class TestData(Client):
         rv, jval = self.api('GET', h_url)
         eq_('new history', jval['name'])
 
+    def test_steps(self):
+
+        hist = {'histname': 'new history'}
+        rv, jval0 = self.api('POST', '/histories', data = hist)
+
+        rv, history = self.api('GET', jval0['history'])
+
+        eq_(0, len(history['steps']))

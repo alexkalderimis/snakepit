@@ -27,7 +27,7 @@ class Config(Mapping):
 
         value = os.getenv(PREFIX + str(key), self._d.get(key))
         if value is None:
-            raise KeyError("No value configured for %s" % (key))
+            raise ConfigurationError("No value configured for %s" % (key))
         return value
 
     def __iter__(self):
@@ -36,3 +36,10 @@ class Config(Mapping):
 
     def __len__(self):
         return len(iter(self))
+
+class ConfigurationError(KeyError):
+    """
+    Class for reporting that a value has been configured incorrectly.
+    """
+    pass
+

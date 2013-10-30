@@ -1,8 +1,12 @@
 from nose.tools import *
 import snakepit
 import snakepit.webapp as web
+import json
+from operator import itemgetter
 
 user = {"name": "Test User", "password": "passw0rd", "email": "user@foo.com"}
+credentials = (user['name'], user['password'])
+accept_json = ('Accept', 'application/json')
 
 class TestWebapp(object):
 
@@ -28,11 +32,18 @@ class TestWebapp(object):
     def teardown(self):
         pass
 
+    def api(self, meth, path, headers = None, **kwargs):
+        f = self.app.get if meth == 'GET' else self.app.post
+        hs = [] if headers is None else headers[:]
+        hs.append(accept_json)
+        rv = f(path, headers = hs, **kwargs)
+        return rv, json.loads(rv.data)
+
     def login(self, username, password):
         return self.app.post('/login', data=dict(
                 username=username,
                 password=password
-            ), follow_redirects=True, headers = [("Accept", "text/html")])
+            ), headers = [("Accept", "text/html")])
 
     def register(self, username, password, confim = None, email = None):
         """Helper to register a user"""
@@ -52,15 +63,34 @@ class TestWebapp(object):
 
     def test_welcome(self):
         rv = self.app.get("/")
-        assert_true("Hello World" in rv.data)
+        eq_(302, rv.status_code)
+        eq_('http://localhost/histories', rv.headers['Location'])
 
     def test_login_logout(self):
-        rv = self.login('Test User', 'passw0rd')
-        print repr(rv.data)
-        assert 'histories' in rv.data
+        rv = self.login(*credentials)
+        eq_(302, rv.status_code)
+        eq_('http://localhost/histories', rv.headers['Location'])
         rv = self.logout()
         assert 'You were logged out' in rv.data
         rv = self.login('Test Userx', 'passw0rd')
         assert 'Invalid username' in rv.data
         rv = self.login('Test User', 'passw0rdx')
         assert 'Invalid password' in rv.data
+
+    def test_histories(self):
+        self.login(*credentials)
+
+        rv, jval = self.api('GET', '/histories')
+        eq_(jval['histories'], [])
+
+        rv, jval = self.api('POST', '/histories', data = {'histname': 'new history'})
+        ok_(jval['history'])
+        h_url = jval['history']
+
+        rv, jval = self.api('GET', '/histories')
+        eq_(1, len(jval['histories']))
+        eq_([h_url], map(itemgetter('url'), jval['histories']))
+
+        rv, jval = self.api('GET', h_url)
+        eq_('new history', jval['name'])
+

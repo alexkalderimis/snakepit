@@ -129,7 +129,6 @@ def login():
     return render_template('login.html', error=error)
 
 def login_user(user):
-    get_datastore().session.add(user)
     session['logged_in'] = True
     session['user'] = {"name": user.name, "id": user.id}
     return redirect(url_for('show_histories'))
@@ -189,7 +188,11 @@ def create_history():
         user = store.fetch_user(**session["user"])
         name = request.form['histname']
         history = user.new_history(name)
-    redirect(url_for('show_history', uuid = history.id))
+    url = url_for('show_history', uuid = history.id)
+    if wants_json():
+        return json.jsonify(history = url), 201, [('Location', url)]
+    else:
+        return redirect(url)
 
 @app.route('/register', methods=['GET'])
 @produces('text/html')
@@ -203,7 +206,7 @@ def create_user():
         return redirect(url_for('register', error = "Passwords do not match"))
     with get_datastore() as store:
         user = store.add_user(data)
-    return login_user(user)
+        return login_user(user)
 
 if __name__ == "__main__":
     init_db()

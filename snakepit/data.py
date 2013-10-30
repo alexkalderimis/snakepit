@@ -44,6 +44,10 @@ class Store(object):
             raise ArgumentError("name or id required")
         return self.session.query(User).filter_by(**args).first()
 
+    def fetch_history(self, **args):
+        filt = select_keys(args, ['name', 'id'])
+        return self.session.query(History).filter_by(**filt).first()
+
     def fork_history(self, history, index):
         """
         Make a new history, retaining the first n steps from the old one.

@@ -7,8 +7,10 @@ from operator import itemgetter
 user = {"name": "Test User", "password": "passw0rd", "email": "user@foo.com"}
 credentials = (user['name'], user['password'])
 accept_json = ('Accept', 'application/json')
+accept_html = ("Accept", "text/html")
+accept_any = ('Accept', '*/*')
 
-class TestWebapp(object):
+class Client(object):
 
     CONF = snakepit.config.Config("TEST")
 
@@ -24,8 +26,7 @@ class TestWebapp(object):
 
     def setup(self):
         app = web.app
-        print(TestWebapp.CONF)
-        app.config.update(TestWebapp.CONF)
+        app.config.update(Client.CONF)
         app.config['TESTING'] = True
         self.app = web.app.test_client()
 
@@ -45,7 +46,7 @@ class TestWebapp(object):
                 password=password
             ), headers = [("Accept", "text/html")])
 
-    def register(self, username, password, confim = None, email = None):
+    def register(self, username, password, confirm = None, email = None):
         """Helper to register a user"""
         if confirm is None:
             confirm = password
@@ -56,10 +57,14 @@ class TestWebapp(object):
             "password": password,
             "confirmpassword": confirm,
             "email": email
-            }, follow_redirects = True)
+            }, headers = [accept_html])
 
     def logout(self):
-        return self.app.get('/logout', follow_redirects=True, headers = [("Accept", "text/html")])
+        return self.app.get('/logout',
+                follow_redirects = True,
+                headers          = [accept_json, accept_html])
+
+class TestFrontDoor(Client):
 
     def test_welcome(self):
         rv = self.app.get("/")
@@ -77,13 +82,41 @@ class TestWebapp(object):
         rv = self.login('Test User', 'passw0rdx')
         assert 'Invalid password' in rv.data
 
-    def test_histories(self):
+    def test_register(self):
+        new_user = ("new user", "foo")
+
+        rv = self.login(*new_user)
+        assert 'Invalid username' in rv.data
+
+        rv = self.register(*new_user)
+        eq_(302, rv.status_code)
+        eq_('http://localhost/histories', rv.headers['Location'])
+
+        self.logout()
+
+        rv = self.login(*new_user)
+        eq_(302, rv.status_code)
+        eq_('http://localhost/histories', rv.headers['Location'])
+
+
+class TestData(Client):
+
+    def setup(self):
+        super(TestData, self).setup()
         self.login(*credentials)
+
+    def teardown(self):
+        self.logout()
+        super(TestData, self).teardown()
+
+    def test_histories(self):
+
+        hist = {'histname': 'new history'}
 
         rv, jval = self.api('GET', '/histories')
         eq_(jval['histories'], [])
 
-        rv, jval = self.api('POST', '/histories', data = {'histname': 'new history'})
+        rv, jval = self.api('POST', '/histories', data = hist)
         ok_(jval['history'])
         h_url = jval['history']
 

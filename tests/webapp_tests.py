@@ -151,9 +151,11 @@ class TestData(Client):
 
         r, step = self.api('POST', h_url, data = data, content_type = JSON)
 
-        print(r.status, r.data)
         eq_(201, r.status_code)
+        s_url = r.headers['Location']
 
         rv, history = self.api('GET', h_url)
 
         eq_(1, len(history['steps']))
+        ok_(s_url.endswith(history['steps'][0]['url']))
+

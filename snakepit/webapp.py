@@ -192,7 +192,7 @@ def add_step(uuid):
         step = h.append_step(step_data['tool'], step_data['mimetype'],
                 step_data['data'])
         url = url_for('show_step', uuid = uuid, idx = len(h.steps) - 1)
-        return return_step(step, 201, [('Location', url)])
+    return return_step(step, 201, [('Location', url)])
 
 @app.route('/histories/<uuid>', methods = ['GET'])
 @auth.requires_roles('user')

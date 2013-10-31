@@ -149,7 +149,7 @@ class TestData(Client):
             "data": "my search string"
         })
 
-        r, step = self.api('POST', h_url, data = data, content_type = JSON)
+        r, _ = self.api('POST', h_url, data = data, content_type = JSON)
 
         eq_(201, r.status_code)
         s_url = r.headers['Location']
@@ -158,4 +158,41 @@ class TestData(Client):
 
         eq_(1, len(history['steps']))
         ok_(s_url.endswith(history['steps'][0]['url']))
+
+
+class TestWithHistory(Client):
+
+    def setup(self):
+        super(TestWithHistory, self).setup()
+        self.login(*credentials)
+        hist = {'histname': 'new history'}
+        rv, jval0 = self.api('POST', '/histories', data = hist)
+        self.h_url = jval0['history']
+        steps = [
+            {
+                "tool": "http://tools.intermine.org/keyword-search",
+                "mimetype": "text/plain",
+                "data": "my search string"
+            },
+            {
+                "tool": "http://tools.intermine.org/create-list",
+                "mimetype": "application/intermine-id-list",
+                "data": [123, 456, 789]
+            }
+        ]
+        for step in steps:
+            data = json.dumps(step)
+            self.api('POST', self.h_url, data = data, content_type = JSON)
+
+    def teardown(self):
+        self.logout()
+        super(TestWithHistory, self).teardown()
+
+    @property
+    def history(self):
+        r, h = self.api('GET', self.h_url)
+        return h
+
+    def test_forking(self):
+        eq_(2, len(self.history['steps']))
 

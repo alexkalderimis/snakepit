@@ -5,10 +5,12 @@ import json
 from operator import itemgetter
 
 user = {"name": "Test User", "password": "passw0rd", "email": "user@foo.com"}
+JSON = 'application/json'
 credentials = (user['name'], user['password'])
-accept_json = ('Accept', 'application/json')
+accept_json = ('Accept', JSON)
 accept_html = ("Accept", "text/html")
 accept_any = ('Accept', '*/*')
+json_content = ('Content-Type', JSON)
 
 class Client(object):
 
@@ -38,7 +40,11 @@ class Client(object):
         hs = [] if headers is None else headers[:]
         hs.append(accept_json)
         rv = f(path, headers = hs, **kwargs)
-        return rv, json.loads(rv.data)
+        try:
+            data = json.loads(rv.data)
+        except ValueError:
+            data = None
+        return rv, data
 
     def login(self, username, password):
         return self.app.post('/login', data=dict(
@@ -132,6 +138,22 @@ class TestData(Client):
         hist = {'histname': 'new history'}
         rv, jval0 = self.api('POST', '/histories', data = hist)
 
-        rv, history = self.api('GET', jval0['history'])
+        h_url = jval0['history']
+        rv, history = self.api('GET', h_url)
 
         eq_(0, len(history['steps']))
+
+        data = json.dumps({
+            "tool": "http://tools.intermine.org/keyword-search",
+            "mimetype": "text/plain",
+            "data": "my search string"
+        })
+
+        r, step = self.api('POST', h_url, data = data, content_type = JSON)
+
+        print(r.status, r.data)
+        eq_(201, r.status_code)
+
+        rv, history = self.api('GET', h_url)
+
+        eq_(1, len(history['steps']))

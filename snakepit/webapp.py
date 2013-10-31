@@ -1,10 +1,11 @@
 from flask import Flask, g, flash, request, session, redirect, \
-        url_for, abort, render_template, flash, json
+        make_response, url_for, abort, render_template, flash, json
 
 from datetime import datetime, timedelta
 import os.path as path
 from flask_negotiate import consumes, produces
 from flask_oauthlib.provider import OAuth2Provider
+import logging
 
 # snakepit code
 from security import test_pw, Authenticator
@@ -18,6 +19,18 @@ app = Flask('snakepit', template_folder = templates)
 app.config.update(config.Config())
 
 oauth = OAuth2Provider(app)
+
+if not app.debug:
+    from logging.handlers import RotatingFileHandler
+    handler = RotatingFileHandler("snakepit.log", maxBytes = 10000000)
+    handler.setLevel(logging.DEBUG)
+    app.logger.addHandler(handler)
+
+class InputError(Exception):
+
+    def __init__(self, message):
+        super(Exception, self).__init__()
+        self.message = message
 
 def init_db():
     """Creates the database tables."""
@@ -139,6 +152,17 @@ def logout():
     flash('You were logged out')
     return redirect(url_for('login'))
 
+def return_step(step, code = 200, headers = None):
+    if wants_json():
+        payload = json.jsonify(
+                tool_url = step.tool,
+                mimetype = step.mimetype,
+                data = step.data)
+    else:
+        payload = render_template("show_step", step = step)
+
+    return payload, code, headers
+
 @app.route("/histories/<uuid>/<int:idx>")
 @auth.requires_roles("user")
 def show_step(uuid, idx):
@@ -147,12 +171,30 @@ def show_step(uuid, idx):
     if h is None or len(h.steps) <= idx:
         return abort(404)
     step = h.steps[idx]
-    if wants_json():
-        return json.jsonify(tool_url = step.tool, mimetype = step.mimetype, data = step.data)
-    else:
-        return render_template("show_step", step = step)
+    return return_step(step)
 
-@app.route('/histories/<uuid>')
+@app.errorhandler(InputError)
+def handle_input_error(err):
+    return make_response(standard_response(None, 400, err.message), 400)
+
+@app.route('/histories/<uuid>', methods = ['POST'])
+@auth.requires_roles('user')
+@produces('application/json', 'text/html')
+def add_step(uuid):
+    with get_datastore() as store:
+        store     = get_datastore()
+        h         = store.fetch_history(id = uuid)
+        step_data = request.json
+
+        if h is None: return abort(404)
+        if step_data is None: raise InputError("Missing required data")
+
+        step = h.append_step(step_data['tool'], step_data['mimetype'],
+                step_data['data'])
+        url = url_for('show_step', uuid = uuid, idx = len(h.steps))
+        return return_step(step, 201, [('Location', url)])
+
+@app.route('/histories/<uuid>', methods = ['GET'])
 @auth.requires_roles('user')
 @produces('application/json', 'text/html')
 def show_history(uuid):

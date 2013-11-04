@@ -173,6 +173,28 @@ def show_step(uuid, idx):
     step = h.steps[idx]
     return return_step(step)
 
+@app.route('/histories/<uuid>/<int:idx>/next', methods = ['POST'])
+@auth.requires_roles('user')
+def add_next_step(uuid, idx):
+    with get_datastore() as store:
+        h      = store.fetch_history(id = uuid)
+        step_data = request.json
+        next_i = idx + 1
+
+        if h is None: return abort(404)
+        if step_data is None: raise InputError("Missing required data")
+        args = select_keys(step_data, ['tool', 'mimetype', 'data'])
+
+        if len(h.steps) == next_i:
+            step = h.append_step(**args)
+            url = url_for('show_step', uuid = h.id, idx = next_i)
+        else:
+            forked = store.fork_history({'id': h.id}, next_i)
+            step = forked.append_step(**args)
+            url = url_for('show_step', uuid = forked.id, idx = next_i)
+
+    return return_step(step, 201, [('Location', url)])
+
 @app.errorhandler(InputError)
 def handle_input_error(err):
     return make_response(standard_response(None, 400, err.message), 400)

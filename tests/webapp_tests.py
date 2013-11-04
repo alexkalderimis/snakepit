@@ -193,6 +193,23 @@ class TestWithHistory(Client):
         r, h = self.api('GET', self.h_url)
         return h
 
+    @property
+    def histories(self):
+        r, jv = self.api('GET', '/histories')
+        return jv['histories']
+
     def test_forking(self):
         eq_(2, len(self.history['steps']))
+        n_h = len(self.histories)
+        step_0 = self.history['steps'][0]['url']
+        next_step = json.dumps({
+            'tool': 'http://tools.intermine.org/go-enrichment',
+            'mimetype': 'application/intermine-id-list',
+            'data': [123, 456, 789]
+        })
+        rv, jval = self.api('POST', step_0 + '/next', data = next_step, content_type = JSON)
+        eq_(201, rv.status_code)
+        ok_(self.h_url not in rv.headers['Location'])
+        eq_(2, len(self.history['steps']))
+        eq_(n_h + 1, len(self.histories))
 
